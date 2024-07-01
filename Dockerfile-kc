@@ -1,0 +1,22 @@
+FROM quay.io/keycloak/keycloak:24.0.3
+
+USER root
+
+# Copying my idp
+COPY keycloak-24.0.3/ /opt/keycloak
+COPY ./keycloak-24.0.3/conf/truststores/keystore.p12 /opt/keycloak/conf/keystore.p12
+COPY server.crt.pem /opt/keycloak/server.crt.pem
+COPY /rest/src/main/resources/keycloak.json /opt/jboss/keycloak/standalone/configuration/keycloak.json
+
+RUN keytool -import -noprompt -trustcacerts -alias etCert -file /opt/keycloak/server.crt.pem -keystore /etc/pki/java/cacerts -storepass changeit
+
+# File permission
+RUN chown -R keycloak:keycloak /opt/keycloak && chmod -R 755 /opt/keycloak
+
+USER keycloak
+
+# Expose necessary ports
+EXPOSE 8280 8180
+
+# Set the entrypoint to start Keycloak in development mode
+ENTRYPOINT ["/opt/keycloak/bin/kc.sh", "start-dev"]

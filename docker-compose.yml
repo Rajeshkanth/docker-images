@@ -1,0 +1,72 @@
+services:
+  db:
+    image: et-db
+    container_name: et-postgres-container
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    volumes:
+      - ./et_backup.dump:/docker-entrypoint-initdb.d/et_backup.dump
+    networks:
+      - easy_transfer_network
+
+  keycloak:
+    image: kc-sms
+    hostname: easytransfer.com
+    container_name: keycloak-container
+    ports:
+      - "8280:8280"
+      - "8180:8180"
+    volumes:
+      - kc-data:/opt/keycloak/data
+      - /Users/rajesh/Downloads/IAM/export:/opt/keycloak/data/import
+    depends_on:
+      - db
+    environment:
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN}
+      TWILIO_PHONE_NUMBER: ${TWILIO_PHONE_NUMBER}
+    networks:
+      - easy_transfer_network
+
+  app:
+    image: et-app-secure2
+    container_name: et-app-container
+    ports:
+      - "443:443"
+    depends_on:
+      - db
+      - keycloak
+    environment:
+      SPRING_DATASOURCE_URL: ${POSTGRES_DB_URI}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_KEYCLOAK_ISSUER_URI: ${ISSUER_URI}
+      SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KEYCLOAK_CLIENT_ID: ftl-login
+      SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KEYCLOAK_CLIENT_SECRET: ${KC_CLIENT_SECRET}
+      SERVER_SSL_TRUST_STORE: /usr/local/openjdk-21/lib/security/cacerts
+    networks:
+      - easy_transfer_network
+
+  nginx:
+    image: nginx2
+    container_name: nginx-container
+    ports:
+      - "444:444"
+    volumes:
+      - /Users/rajesh/Downloads/easy_transfer_java:/etc/nginx/ssl
+    depends_on:
+      - app
+      - keycloak
+    networks:
+      - easy_transfer_network
+
+networks:
+  easy_transfer_network:
+    driver: bridge
+
+volumes:
+  kc-data:

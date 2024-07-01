@@ -1,0 +1,5 @@
+FROM postgres:14.2
+
+# Copy the database dump file into the container
+# This is for using the exisiting db in container
+COPY et_backup.dump /docker-entrypoint-initdb.d/
