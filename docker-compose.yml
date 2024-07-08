@@ -1,6 +1,6 @@
 services:
   db:
-    image: et-db
+    image: et-db-latest
     container_name: et-postgres-container
     ports:
       - "5432:5432"
@@ -10,18 +10,19 @@ services:
       POSTGRES_DB: ${DB_NAME}
     volumes:
       - ./et_backup.dump:/docker-entrypoint-initdb.d/et_backup.dump
+      - db-data:/var/lib/postgresql/data
     networks:
       - easy_transfer_network
 
   keycloak:
-    image: kc-sms
+    image: kc-latest
     hostname: easytransfer.com
     container_name: keycloak-container
     ports:
       - "8280:8280"
       - "8180:8180"
     volumes:
-      - kc-data:/opt/keycloak/data
+      - kc-volume:/opt/keycloak/data
       - /Users/rajesh/Downloads/IAM/export:/opt/keycloak/data/import
     depends_on:
       - db
@@ -29,11 +30,14 @@ services:
       TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID}
       TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN}
       TWILIO_PHONE_NUMBER: ${TWILIO_PHONE_NUMBER}
+      SIGNUP_USER_API: https://localhost:443/api/auth
     networks:
       - easy_transfer_network
+    extra_hosts:
+      - "localhost:172.19.0.4"
 
   app:
-    image: et-app-secure2
+    image: et-app-latest
     container_name: et-app-container
     ports:
       - "443:443"
@@ -44,12 +48,14 @@ services:
       SPRING_DATASOURCE_URL: ${POSTGRES_DB_URI}
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
-      SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_KEYCLOAK_ISSUER_URI: ${ISSUER_URI}
+      SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_KEYCLOAK_ISSUER_URI: https://easytransfer.com:8180/realms/easy_transfer_realm
       SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KEYCLOAK_CLIENT_ID: ftl-login
       SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KEYCLOAK_CLIENT_SECRET: ${KC_CLIENT_SECRET}
       SERVER_SSL_TRUST_STORE: /usr/local/openjdk-21/lib/security/cacerts
     networks:
       - easy_transfer_network
+    extra_hosts:
+      - "localhost:172.19.0.4"
 
   nginx:
     image: nginx2
@@ -69,4 +75,5 @@ networks:
     driver: bridge
 
 volumes:
-  kc-data:
+  kc-volume:
+  db-data:
